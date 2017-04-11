@@ -1,6 +1,6 @@
 try:
     import aiohttp
-    from aiohttp.errors import ProxyConnectionError
+    from aiohttp import ClientProxyConnectionError
     from aiohttp.helpers import BasicAuth as HttpProxyAuth
 except ImportError:
     raise ImportError('aiosocks.SocksConnector require aiohttp library')
@@ -59,7 +59,7 @@ class SocksConnector(aiohttp.TCPConnector):
             expected = self._fingerprint
             if got != expected:
                 transport.close()
-                raise aiohttp.FingerprintMismatch(
+                raise aiohttp.ServerFingerprintMismatch(
                     expected, got, host, 80
                 )
 
@@ -94,12 +94,12 @@ class SocksConnector(aiohttp.TCPConnector):
                     server_hostname=req.host if sslcontext else None)
                 self._validate_ssl_fingerprint(transp, req.host)
 
-                return transp, proto
+                return proto
             except (OSError, SocksError, SocksConnectionError) as e:
                 exc = e
         else:
             if isinstance(exc, SocksConnectionError):
-                raise ProxyConnectionError(*exc.args)
+                raise ClientProxyConnectionError(*exc.args)
             if isinstance(exc, SocksError):
                 raise exc
             else:
@@ -109,10 +109,7 @@ class SocksConnector(aiohttp.TCPConnector):
 
 
 def proxy_connector(proxy, proxy_auth=None, **kwargs):
-    if isinstance(proxy, HttpProxyAddr):
-        return aiohttp.ProxyConnector(
-            proxy.url, proxy_auth=proxy_auth, **kwargs)
-    elif isinstance(proxy, SocksAddr):
+    if isinstance(proxy, SocksAddr):
         return SocksConnector(proxy, proxy_auth, **kwargs)
     else:
         raise ValueError('Unsupported `proxy` format')
